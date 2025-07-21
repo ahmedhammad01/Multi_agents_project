@@ -1,0 +1,47 @@
+# Python virtual environment
+venv/
+.env/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+build/
+dist/
+
+# Data directories (sensitive MIMIC-IV data)
+data/raw/
+data/processed/
+data/cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Testing and coverage
+.coverage
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Logs
+logs/
+*.log
+
+# Environment variables and credentials
+config/.env
+*.key
+*.pem
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+
+# macOS and Windows system files
+.DS_Store
+Thumbs.db

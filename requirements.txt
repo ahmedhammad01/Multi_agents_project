@@ -1,0 +1,46 @@
+# Core dependencies for Python and data processing
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# BigQuery for MIMIC-IV data access
+google-cloud-bigquery>=3.10.0
+google-cloud-bigquery-storage>=2.19.0
+
+# LangChain and LangGraph for agent orchestration
+langchain>=0.2.0
+langgraph>=0.1.0
+langchain_community
+
+# Neo4j for knowledge graph
+neo4j>=5.8.0
+
+# NLP for PROM extraction
+spacy>=3.5.0
+transformers>=4.30.0  # HuggingFace for optional BioBERT
+
+fairlearn>=0.7.0    # For AIF360 Reductions
+inFairness>=0.2.2   # For AIF360 SenSeI/SenSR
+langchain-community>=0.2.0  # For deprecated langchain.llms imports
+
+# Fairness metrics
+aif360>=0.5.0
+
+# Visualization
+plotly>=5.14.0
+matplotlib>=3.7.0
+langchain_Grok>=0.1.0
+
+# Streamlit for AG-UI dashboard
+streamlit>=1.22.0
+
+# Utilities
+psutil>=5.9.0
+tiktoken>=0.4.0
+jsonschema>=4.17.0
+pyyaml>=6.0.0
+tenacity>=8.2.0  # For retries
+
+# Testing
+pytest>=7.3.0
+pytest-cov>=4.0.0

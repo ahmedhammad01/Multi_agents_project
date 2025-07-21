@@ -1,0 +1,37 @@
+
+project:
+  data_dir: data
+  raw_data_file: data/raw/mimic_raw.json
+  clean_data_file: data/processed/mimic_clean.json
+bigquery:
+  project_id: woven-operative-465400-u9
+  dataset_id: mimic4
+  batch_size: 5000  # Reduced for optimized connector
+  max_retries: 3
+  retry_delay: 2
+neo4j:
+  uri: bolt://localhost:7687
+  user: neo4j
+  password: helloworld
+  max_retries: 5
+  node_count_min: 15000
+  edge_count_min: 10000
+llm:
+  provider: groq
+  model: llama3-70b-8192
+  api_key: ""
+  max_tokens: 4096
+  temperature: 0.7
+data_processing:
+  min_records: 5000
+  quality_score_min: 0.95
+  prom_confidence_min: 0.7
+  lab_coverage_min: 0.7
+  treatment_coverage_min: 0.3
+  procedure_coverage_min: 0.1
+  max_error_rate: 0.01
+  max_validation_iterations: 3
+ethical:
+  bias_check_fields: ["age", "gender", "condition_type"]
+dashboard:
+  query_response_time: 10
