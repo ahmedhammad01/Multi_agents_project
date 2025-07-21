@@ -59,8 +59,8 @@ class MIMICDataConnector:
             logger.info("💡 Ensure gcloud auth is set: gcloud auth application-default login")
             return False
 
-    def get_diabetes_patients(self, limit: int = 15000) -> pd.DataFrame:
-        """Fetch diabetes patients from MIMIC-IV (ICD-10: E10-E14)"""
+    def get_diabetes_patients(self, limit: int = 5000, offset: int = 0) -> pd.DataFrame:
+        """Fetch diabetes patients from MIMIC-IV (ICD-10: E10-E14) with offset for batching"""
         if not self.client:
             logger.error("❌ BigQuery client not connected")
             return pd.DataFrame()
@@ -91,11 +91,11 @@ class MIMICDataConnector:
         WHERE d.icd_code LIKE 'E1%' 
         AND d.icd_version = 10
         AND p.anchor_age >= 18
-        LIMIT {limit}
+        ORDER BY p.subject_id
+        LIMIT {limit} OFFSET {offset}
         """
-        
         try:
-            df = self._execute_query_with_retry(query, f"Querying unique diabetes patients (limit: {limit})")
+            df = self._execute_query_with_retry(query, f"Querying unique diabetes patients (limit: {limit}, offset: {offset})")
             logger.info(f"✅ Retrieved {len(df)} unique diabetes patient records")
             return df
         except Exception as e:
@@ -123,7 +123,6 @@ class MIMICDataConnector:
         WHERE subject_id IN ({ids_str})
         AND (drug LIKE '%insulin%' OR drug LIKE '%metformin%' OR drug LIKE '%glyburide%' OR drug LIKE '%glipizide%')
         """
-        
         try:
             df = self._execute_query_with_retry(query, f"Querying treatment data for {len(subject_ids)} patients")
             logger.info(f"✅ Retrieved {len(df)} treatment records")
@@ -133,15 +132,12 @@ class MIMICDataConnector:
             return pd.DataFrame()
 
     def get_lab_results(self, subject_ids: list) -> pd.DataFrame:
-        """Fetch lab results (outcomes) for patients
-        Focus on HbA1c and glucose levels
-        """
+        """Fetch lab results (outcomes) for patients"""
         if not self.client or not subject_ids:
             logger.error("❌ Client not connected or no subject IDs")
             return pd.DataFrame()
             
         ids_str = ','.join([str(id) for id in subject_ids])
-        
         query = f"""
         SELECT 
             l.subject_id,
@@ -158,7 +154,6 @@ class MIMICDataConnector:
         AND (d.label LIKE '%glucose%' OR d.label LIKE '%hemoglobin%' OR d.label LIKE '%hba1c%')
         AND l.valuenum IS NOT NULL
         """
-        
         try:
             df = self._execute_query_with_retry(query, f"Querying lab results for {len(subject_ids)} patients")
             logger.info(f"✅ Retrieved {len(df)} lab result records")
@@ -167,16 +162,13 @@ class MIMICDataConnector:
             logger.error(f"❌ Lab results query failed: {e}")
             return pd.DataFrame()
 
-    def get_discharge_notes(self, subject_ids: list, limit_per_patient: int = 5) -> pd.DataFrame:
-        """Get discharge summaries and clinical notes for patients
-        These contain valuable clinical narratives for pathway analysis
-        """
+    def get_discharge_notes(self, subject_ids: list, limit_per_patient: int = 3) -> pd.DataFrame:
+        """Get discharge summaries and clinical notes for patients"""
         if not self.client or not subject_ids:
             logger.error("❌ Client not connected or no subject IDs")
             return pd.DataFrame()
             
         ids_str = ','.join([str(id) for id in subject_ids])
-        
         query = f"""
         SELECT 
             subject_id,
@@ -187,38 +179,31 @@ class MIMICDataConnector:
             charttime,
             storetime,
             text
-        FROM `{self.dataset_id}.discharge`
+        FROM `{self.dataset_id}.note.discharge`
         WHERE subject_id IN ({ids_str})
         AND text IS NOT NULL
         AND LENGTH(text) > 100
         ORDER BY subject_id, charttime DESC
         """
-        
         try:
             df = self._execute_query_with_retry(query, f"Querying discharge notes for {len(subject_ids)} patients")
-            
-            # Limit notes per patient to avoid overwhelming data
             if not df.empty and limit_per_patient > 0:
                 df_limited = df.groupby('subject_id').head(limit_per_patient).reset_index(drop=True)
                 logger.info(f"✅ Retrieved {len(df_limited)} clinical notes (limited to {limit_per_patient} per patient)")
                 return df_limited
-            else:
-                logger.info(f"✅ Retrieved {len(df)} clinical notes")
-                return df
+            logger.info(f"✅ Retrieved {len(df)} clinical notes")
+            return df
         except Exception as e:
             logger.error(f"❌ Discharge notes query failed: {e}")
             return pd.DataFrame()
 
     def get_procedures(self, subject_ids: list) -> pd.DataFrame:
-        """Get procedure data for patients
-        Useful for understanding treatment interventions
-        """
+        """Get procedure data for patients"""
         if not self.client or not subject_ids:
             logger.error("❌ Client not connected or no subject IDs")
             return pd.DataFrame()
         
         ids_str = ','.join([str(id) for id in subject_ids])
-        
         query = f"""
         SELECT 
             p.subject_id,
@@ -231,7 +216,6 @@ class MIMICDataConnector:
                                                     AND p.icd_version = d.icd_version
         WHERE p.subject_id IN ({ids_str})
         """
-        
         try:
             df = self._execute_query_with_retry(query, f"Querying procedures for {len(subject_ids)} patients")
             logger.info(f"✅ Retrieved {len(df)} procedure records")
@@ -244,17 +228,14 @@ class MIMICDataConnector:
         """Save raw data to JSON"""
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            
             serializable_data = {}
             for key, df in data_dict.items():
                 if isinstance(df, pd.DataFrame):
                     serializable_data[key] = df.to_dict('records')
                 else:
                     serializable_data[key] = df
-            
             with open(filepath, 'w') as f:
                 json.dump(serializable_data, f, default=str, indent=2)
-            
             logger.info(f"✅ Raw data saved to {filepath}")
             return True
         except Exception as e:

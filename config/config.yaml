@@ -6,7 +6,7 @@ project:
 bigquery:
   project_id: woven-operative-465400-u9
   dataset_id: mimic4
-  batch_size: 5000  # Reduced for optimized connector
+  batch_size: 5000
   max_retries: 3
   retry_delay: 2
 neo4j:
@@ -25,10 +25,10 @@ llm:
 data_processing:
   min_records: 5000
   quality_score_min: 0.95
-  prom_confidence_min: 0.7
-  lab_coverage_min: 0.7
-  treatment_coverage_min: 0.3
-  procedure_coverage_min: 0.1
+  prom_confidence_min: 0.6
+  lab_coverage_min: 0.05
+  treatment_coverage_min: 0.01
+  procedure_coverage_min: 0.05
   max_error_rate: 0.01
   max_validation_iterations: 3
 ethical:

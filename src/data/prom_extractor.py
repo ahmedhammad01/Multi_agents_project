@@ -65,9 +65,9 @@ class PROMExtractor:
         if not patient_treatments.empty:
             unique_treatments = patient_treatments['treatment_category'].nunique()
             if unique_treatments > 5:
-                treatment_adjustment -= 8
+                treatment_adjustment = -8
             elif unique_treatments > 3:
-                treatment_adjustment -= 4
+                treatment_adjustment = -4
         
         notes_adjustment = 0
         combined_notes = ''  # Initialize to avoid undefined error
@@ -77,7 +77,7 @@ class PROMExtractor:
                 if any(kw in note for kw in ['diabetes', 'glucose', 'insulin', 'pain', 'mobility'])
             )
         
-        if combined_notes:  # Check if notes exist after initialization
+        if combined_notes:
             if self.nlp:
                 doc = self.nlp(combined_notes)
                 positive_count = sum(1 for token in doc if token.text in ['stable', 'improved', 'well-controlled', 'good'])

@@ -1,63 +1,41 @@
 
 import logging
-import logging.handlers
 import json
-import os
-from typing import Dict, Optional
-from datetime import datetime
+from typing import Dict
+import warnings
+
+# Suppress AIF360 optional dependency warnings
+warnings.filterwarnings("ignore", category=UserWarning, message="No module named 'tensorflow'")
+warnings.filterwarnings("ignore", category=UserWarning, message="No module named 'inFairness'")
+warnings.filterwarnings("ignore", category=UserWarning, message="No module named 'fairlearn'")
 
 class JSONFormatter(logging.Formatter):
-    """Custom formatter for JSON logging"""
     def format(self, record):
-        log_data = {
-            "timestamp": datetime.utcnow().isoformat(),
+        log_record = {
+            "timestamp": record.created,
             "level": record.levelname,
-            "name": record.name,
             "message": record.getMessage(),
-            "filename": record.filename,
+            "module": record.module,
             "funcName": record.funcName,
             "lineno": record.lineno
         }
-        return json.dumps(log_data)
+        return json.dumps(log_record)
+
+from typing import Optional
 
 def setup_logging(config: Optional[Dict] = None):
-    """Configure structured JSON logging for the platform"""
-    try:
-        # Default config if none provided
-        config = config or {
-            "logging": {
-                "level": "INFO",
-                "file": "logs/app.log",
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                "use_json": True
-            }
-        }
-
-        # Set up root logger
-        logger = logging.getLogger()
-        logger.setLevel(getattr(logging, config["logging"]["level"], logging.INFO))
-
-        # Clear any existing handlers
-        logger.handlers = []
-
-        # Console handler with standard format
-        console_handler = logging.StreamHandler()
-        console_formatter = logging.Formatter(config["logging"]["format"])
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
-
-        # File handler with JSON format
-        if config["logging"]["use_json"]:
-            os.makedirs(os.path.dirname(config["logging"]["file"]), exist_ok=True)
-            file_handler = logging.handlers.RotatingFileHandler(
-                config["logging"]["file"],
-                maxBytes=10_000_000,  # 10MB
-                backupCount=5
-            )
-            file_handler.setFormatter(JSONFormatter())
-            logger.addHandler(file_handler)
-
-        logger.info("✅ Logging configured successfully")
-    except Exception as e:
-        print(f"Failed to configure logging: {e}")
-        logging.basicConfig(level=logging.INFO)
+    """Configure JSON logging"""
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # File handler
+    file_handler = logging.FileHandler(config.get("log_file", "logs/app.log") if config else "logs/app.log")
+    file_handler.setFormatter(JSONFormatter())
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    logger.addHandler(console_handler)
+    
+    logger.info("✅ Logging configured successfully")

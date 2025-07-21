@@ -23,23 +23,29 @@ class DataCleaner:
                 logger.warning("⚠️ Empty patient data")
                 return patients
             
-            # Drop duplicates but keep first occurrence
-            cleaned = patients.drop_duplicates(subset=['subject_id'], keep='first')
+            # Avoid SettingWithCopyWarning by using copy
+            cleaned = patients.copy()
             
-            # Fill missing values instead of dropping
-            cleaned['gender'] = cleaned['gender'].fillna('Unknown').map({'M': 'Male', 'F': 'Female', None: 'Unknown'})
-            cleaned['age'] = cleaned['age'].fillna(cleaned['age'].median())
-            cleaned['condition_type'] = cleaned['condition_type'].astype(str).fillna('Unknown')
+            # Softer duplicate removal
+            cleaned = cleaned.drop_duplicates(subset=['subject_id', 'hadm_id'], keep='first')
             
-            # Clip outliers instead of dropping
-            cleaned['age'] = cleaned['age'].clip(18, 120)
+            # Fill missing values
+            cleaned.loc[:, 'gender'] = cleaned['gender'].fillna('Unknown').map({'M': 'Male', 'F': 'Female', None: 'Unknown'})
+            cleaned.loc[:, 'age'] = cleaned['age'].fillna(cleaned['age'].median())
+            cleaned.loc[:, 'condition_type'] = cleaned['condition_type'].astype(str).fillna('Unknown')
+            
+            # Clip outliers
+            cleaned.loc[:, 'age'] = cleaned['age'].clip(18, 120)
             
             # Add age groups
-            cleaned['age_group'] = pd.cut(
+            cleaned.loc[:, 'age_group'] = pd.cut(
                 cleaned['age'],
                 bins=[18, 30, 50, 65, 80, 120],
                 labels=['18-29', '30-49', '50-64', '65-79', '80+']
             )
+            
+            # Minimal filtering to reduce drop rate
+            cleaned = cleaned[cleaned['subject_id'].notna()]
             
             logger.info(f"✅ Patient data cleaned: {len(patients)} → {len(cleaned)} ({(1 - len(cleaned)/len(patients))*100:.1f}% dropped)")
             return cleaned
@@ -55,13 +61,12 @@ class DataCleaner:
                 logger.warning("⚠️ Empty treatment data")
                 return treatments
             
-            # Fill missing values instead of dropping
             cleaned = treatments.copy()
-            cleaned['subject_id'] = cleaned['subject_id'].fillna(-1).astype(str)
-            cleaned['drug'] = cleaned['drug'].str.lower().str.strip().fillna('unknown')
-            cleaned['dose_val_rx'] = pd.to_numeric(cleaned['dose_val_rx'], errors='coerce').fillna(0)
-            cleaned['starttime'] = pd.to_datetime(cleaned['starttime'], errors='coerce').fillna(pd.Timestamp('1900-01-01'))
-            cleaned['treatment_category'] = cleaned['treatment_category'].fillna('unknown')
+            cleaned.loc[:, 'subject_id'] = cleaned['subject_id'].fillna(-1).astype(str)
+            cleaned.loc[:, 'drug'] = cleaned['drug'].str.lower().str.strip().fillna('unknown')
+            cleaned.loc[:, 'dose_val_rx'] = pd.to_numeric(cleaned['dose_val_rx'], errors='coerce').fillna(0)
+            cleaned.loc[:, 'starttime'] = pd.to_datetime(cleaned['starttime'], errors='coerce').fillna(pd.Timestamp('1900-01-01'))
+            cleaned.loc[:, 'treatment_category'] = cleaned['treatment_category'].fillna('unknown')
             
             logger.info(f"✅ Treatment data cleaned: {len(treatments)} → {len(cleaned)} ({(1 - len(cleaned)/len(treatments))*100:.1f}% dropped)")
             return cleaned
@@ -77,12 +82,11 @@ class DataCleaner:
                 logger.warning("⚠️ Empty lab data")
                 return labs
             
-            # Fill missing values and filter invalid
             cleaned = labs.copy()
-            cleaned['subject_id'] = cleaned['subject_id'].fillna(-1).astype(str)
-            cleaned['lab_test'] = cleaned['lab_test'].fillna('unknown')
-            cleaned['valuenum'] = pd.to_numeric(cleaned['valuenum'], errors='coerce').clip(lower=0)
-            cleaned['charttime'] = pd.to_datetime(cleaned['charttime'], errors='coerce').fillna(pd.Timestamp('1900-01-01'))
+            cleaned.loc[:, 'subject_id'] = cleaned['subject_id'].fillna(-1).astype(str)
+            cleaned.loc[:, 'lab_test'] = cleaned['lab_test'].fillna('unknown')
+            cleaned.loc[:, 'valuenum'] = pd.to_numeric(cleaned['valuenum'], errors='coerce').clip(lower=0)
+            cleaned.loc[:, 'charttime'] = pd.to_datetime(cleaned['charttime'], errors='coerce').fillna(pd.Timestamp('1900-01-01'))
             cleaned = cleaned[cleaned['valuenum'].notna()]
             
             logger.info(f"✅ Lab data cleaned: {len(labs)} → {len(cleaned)} ({(1 - len(cleaned)/len(labs))*100:.1f}% dropped)")
@@ -112,7 +116,6 @@ class DataCleaner:
                     if bias_detected:
                         logger.warning(f"⚠️ Bias detected in {field}: min representation {min_representation:.2f}")
 
-            # Simplified AIF360 check
             if 'gender' in patients:
                 dataset = pd.DataFrame({
                     'label': (patients['age'] > patients['age'].median()).astype(int),
